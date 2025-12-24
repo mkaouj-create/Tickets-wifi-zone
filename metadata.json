@@ -1,5 +1,5 @@
 {
   "name": "Tickets-Wifi-Zone",
-  "description": "Professional multi-tenant SaaS for managing and selling MikroTik WiFi tickets with multi-role support and real-time monitoring.",
+  "description": "SaaS professionnel multi-utilisateurs pour la gestion et la vente de tickets WiFi MikroTik avec support multi-rôles et surveillance en temps réel.",
   "requestFramePermissions": []
 }
