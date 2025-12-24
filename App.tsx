@@ -279,6 +279,31 @@ const App: React.FC = () => {
     showToast("Lien d'invitation généré.", 'success');
   };
 
+  const handleCopyLink = async (link: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(link);
+      } else {
+        // Fallback pour contextes non sécurisés
+        const textArea = document.createElement("textarea");
+        textArea.value = link;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      showToast("Lien d'accès copié !", 'success');
+      return true;
+    } catch (err) {
+      showToast("Erreur lors de la copie.", 'error');
+      return false;
+    }
+  };
+
   const handleImportTickets = async (rows: any[]) => {
     setLoadingData(true);
     try {
@@ -401,7 +426,7 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-4">
-            <button className="p-3.5 bg-white/5 text-slate-400 hover:text-brand-500 rounded-xl border border-white/5 transition-all hover:scale-105 active:rotate-180 duration-500">
+            <button onClick={() => window.location.reload()} className="p-3.5 bg-white/5 text-slate-400 hover:text-brand-500 rounded-xl border border-white/5 transition-all hover:scale-105 active:rotate-180 duration-500">
               <RefreshCcw size={18} />
             </button>
           </div>
@@ -442,6 +467,7 @@ const App: React.FC = () => {
         <InviteModal 
           onClose={() => { setIsInviting(false); setGeneratedInviteLink(null); }} 
           onGenerate={handleGenerateInvite} 
+          onCopy={handleCopyLink}
           link={generatedInviteLink}
           isSuperAdmin={isSuperAdmin}
           agencies={agencies}
@@ -533,9 +559,19 @@ const RoleBadge = ({ role }: { role: string }) => {
   );
 };
 
-const InviteModal = ({ onClose, onGenerate, link, isSuperAdmin, agencies }: any) => {
+const InviteModal = ({ onClose, onGenerate, onCopy, link, isSuperAdmin, agencies }: any) => {
   const [role, setRole] = useState<UserRole>('employee');
   const [agencyId, setAgencyId] = useState('');
+  const [justCopied, setJustCopied] = useState(false);
+
+  const handleCopyAction = async () => {
+    if (!link) return;
+    const success = await onCopy(link);
+    if (success) {
+      setJustCopied(true);
+      setTimeout(() => setJustCopied(false), 2000);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center z-[500] p-6 animate-in fade-in duration-500">
@@ -552,18 +588,32 @@ const InviteModal = ({ onClose, onGenerate, link, isSuperAdmin, agencies }: any)
 
         {link ? (
           <div className="space-y-6 animate-in zoom-in duration-500">
-            <div className="bg-slate-950 p-6 rounded-3xl border border-brand-500/30 flex flex-col gap-4 shadow-inner">
+            <div className="bg-slate-950 p-6 rounded-3xl border border-brand-500/30 flex flex-col gap-4 shadow-inner group transition-all">
                <div className="flex justify-between items-center">
-                 <p className="text-[9px] font-black text-brand-500 uppercase tracking-widest italic leading-none">LIEN GÉNÉRÉ</p>
-                 <ShieldCheck size={16} className="text-brand-500" />
+                 <p className="text-[9px] font-black text-brand-500 uppercase tracking-widest italic leading-none">
+                   {justCopied ? 'COPIÉ AVEC SUCCÈS !' : "LIEN D'ACCÈS ACTIF"}
+                 </p>
+                 <ShieldCheck size={16} className={justCopied ? "text-emerald-500" : "text-brand-500"} />
                </div>
-               <p className="font-mono text-[10px] text-slate-300 break-all bg-white/5 p-3 rounded-lg border border-white/5">{link}</p>
+               <div className="relative group/copy">
+                 <p onClick={handleCopyAction} className="font-mono text-[10px] text-slate-300 break-all bg-white/5 p-4 rounded-xl border border-white/5 pr-12 select-all cursor-pointer hover:bg-white/10 transition-colors">
+                   {link}
+                 </p>
+                 <button 
+                  onClick={handleCopyAction}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-brand-500/20 text-brand-500 rounded-lg transition-all"
+                  title="Copier le lien"
+                 >
+                   {justCopied ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                 </button>
+               </div>
             </div>
             <button 
-              onClick={() => { navigator.clipboard.writeText(link); alert("Copié !"); }}
-              className="w-full h-16 bg-brand-500 text-white font-extrabold rounded-3xl uppercase text-[11px] tracking-[0.2em] italic shadow-2xl btn-glow flex items-center justify-center gap-3"
+              onClick={handleCopyAction}
+              className={`w-full h-16 ${justCopied ? 'bg-emerald-600' : 'bg-brand-500'} text-white font-extrabold rounded-3xl uppercase text-[11px] tracking-[0.2em] italic shadow-2xl btn-glow flex items-center justify-center gap-3 active:scale-95 transition-all`}
             >
-              <Copy size={18} /> COPIER LE LIEN D'ACCÈS
+              {justCopied ? <CheckCircle2 size={18} /> : <Copy size={18} />} 
+              {justCopied ? 'LIEN COPIÉ !' : 'COPIER POUR PARTAGER'}
             </button>
             <p className="text-center text-[9px] text-slate-600 font-bold uppercase italic tracking-widest leading-relaxed">
               Ce lien expire dans 24 heures et ne peut être utilisé que par une seule personne.
@@ -596,7 +646,7 @@ const InviteModal = ({ onClose, onGenerate, link, isSuperAdmin, agencies }: any)
                 <select 
                   value={agencyId}
                   onChange={(e) => setAgencyId(e.target.value)}
-                  className="w-full h-14 px-6 bg-slate-950 border border-white/10 rounded-2xl focus:border-brand-500 outline-none text-white font-bold text-xs"
+                  className="w-full h-14 px-6 bg-slate-950 border border-white/10 rounded-2xl focus:border-brand-500 outline-none text-white font-bold text-xs appearance-none cursor-pointer"
                 >
                   <option value="">Sélectionner une Agence</option>
                   {agencies.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -607,9 +657,9 @@ const InviteModal = ({ onClose, onGenerate, link, isSuperAdmin, agencies }: any)
             <button 
               onClick={() => onGenerate({ role, agency_id: agencyId || undefined })}
               disabled={isSuperAdmin && !agencyId}
-              className="w-full h-16 bg-brand-500 text-white font-extrabold rounded-3xl uppercase text-[11px] tracking-[0.2em] italic shadow-2xl btn-glow flex items-center justify-center gap-3"
+              className="w-full h-16 bg-brand-500 text-white font-extrabold rounded-3xl uppercase text-[11px] tracking-[0.2em] italic shadow-2xl btn-glow flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              CRÉER LE JETON D'ACCÈS
+              GÉNÉRER LE LIEN D'ACCÈS
             </button>
           </div>
         )}
